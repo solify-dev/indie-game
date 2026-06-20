@@ -137,10 +137,9 @@ export class Game {
   _pickUpgrade(index) {
     const choice = this._levelUpChoices[index];
     if (!choice) return;
-    this.upgrades.apply(choice.id, this.player);
+    this.upgrades.apply(choice, this.player, this.weapons);
     this._hoverCard = -1;
 
-    // If another level-up is queued, show the next menu immediately
     if (this._pendingLevelUps > 0) {
       this._openLevelUpMenu();
     } else {
@@ -150,7 +149,7 @@ export class Game {
 
   _openLevelUpMenu() {
     this._pendingLevelUps   -= 1;
-    this._levelUpChoices     = this.upgrades.pickThree();
+    this._levelUpChoices     = this.upgrades.pickThree(this.weapons);
     this._cardRects          = [];
     this.state               = 'levelup';
   }
@@ -238,11 +237,12 @@ export class Game {
     for (const e of this.enemies)     e.draw(ctx, this.camera);
     for (const p of this.projectiles) p.draw(ctx, this.camera);
     this.player.draw(ctx, this.camera);
+    this.weapons.draw(ctx, this.camera, this.player);
     this.dmgNums.draw(ctx, this.camera);
 
     ctx.restore(); // end shake before drawing UI
 
-    this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills);
+    this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills, this.weapons.getHUDInfo());
 
     if (this.state === 'levelup') {
       // drawLevelUp returns card rects for click/hover hit-testing

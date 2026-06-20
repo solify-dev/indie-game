@@ -11,7 +11,7 @@ export class UISystem {
   }
 
   // ── In-game HUD ─────────────────────────────────────────────────────────────
-  drawHUD(ctx, player, elapsed, fps, kills) {
+  drawHUD(ctx, player, elapsed, fps, kills, weaponHUD = []) {
     const PAD = 30;
 
     // Title watermark
@@ -80,6 +80,47 @@ export class UISystem {
       this.gw - PAD, this.gh - PAD,
     );
     ctx.restore();
+
+    // Weapon inventory panel (top-left, below timer area)
+    if (weaponHUD.length > 0) {
+      const wx = PAD;
+      const wy = PAD + 80;
+      const itemH = 44, itemW = 260;
+
+      ctx.save();
+      // Panel background
+      const panelH = weaponHUD.length * itemH + 16;
+      this._roundRect(ctx, wx - 8, wy - 8, itemW + 16, panelH, 8);
+      ctx.fillStyle = 'rgba(5,10,25,0.72)';
+      ctx.strokeStyle = 'rgba(60,100,180,0.45)';
+      ctx.lineWidth = 1;
+      ctx.fill(); ctx.stroke();
+
+      for (let i = 0; i < weaponHUD.length; i++) {
+        const w   = weaponHUD[i];
+        const row = wy + i * itemH;
+
+        // Icon
+        ctx.font = '26px serif'; ctx.textAlign = 'left';
+        ctx.fillText(w.icon, wx, row + 28);
+
+        // Name
+        ctx.font = 'bold 20px monospace';
+        ctx.fillStyle = '#aac8ff';
+        ctx.fillText(w.name, wx + 34, row + 20);
+
+        // Level pips
+        const maxPips = w.maxLevel;
+        const pipW = 14, pipGap = 4;
+        for (let p = 0; p < maxPips; p++) {
+          ctx.fillStyle = p < w.level ? '#44aaff' : '#182840';
+          ctx.strokeStyle = '#2a4a66'; ctx.lineWidth = 1;
+          ctx.fillRect(wx + 34 + p * (pipW + pipGap), row + 26, pipW, 6);
+          ctx.strokeRect(wx + 34 + p * (pipW + pipGap), row + 26, pipW, 6);
+        }
+      }
+      ctx.restore();
+    }
   }
 
   // ── Level-Up card screen ─────────────────────────────────────────────────────
@@ -133,20 +174,27 @@ export class UISystem {
   }
 
   _drawCard(ctx, choice, x, y, keyNum, hovered) {
-    const r = 16; // corner radius
+    const r = 16;
 
-    // Card background — brighter when hovered
+    // Accent colour per card type
+    const accent = choice.type === 'new_weapon'
+      ? { border: '#ffaa33', glow: 'rgba(255,160,40,0.5)',  bg: hovered ? '#251a0a' : '#18100a', name: hovered ? '#ffcc77' : '#ffdda0' }
+      : choice.type === 'weapon_upgrade'
+      ? { border: '#bb44ff', glow: 'rgba(160,60,255,0.45)', bg: hovered ? '#1a0f28' : '#110a1e', name: hovered ? '#cc88ff' : '#ddb0ff' }
+      : { border: '#4488ff', glow: 'rgba(80,160,255,0.5)',  bg: hovered ? '#1a2540' : '#0f172a', name: hovered ? '#88ccff' : '#cce0ff' };
+
+    // Card background
     ctx.save();
     this._roundRect(ctx, x, y, CARD_W, CARD_H, r);
-    ctx.fillStyle   = hovered ? '#1a2540' : '#0f172a';
-    ctx.strokeStyle = hovered ? '#66aaff' : '#2a3a5a';
+    ctx.fillStyle   = accent.bg;
+    ctx.strokeStyle = hovered ? accent.border : '#2a3a5a';
     ctx.lineWidth   = hovered ? 3 : 2;
     ctx.fill();
     ctx.stroke();
 
     // Hover glow
     if (hovered) {
-      ctx.shadowColor = 'rgba(80,160,255,0.5)';
+      ctx.shadowColor = accent.glow;
       ctx.shadowBlur  = 24;
       this._roundRect(ctx, x, y, CARD_W, CARD_H, r);
       ctx.stroke();
@@ -156,28 +204,41 @@ export class UISystem {
 
     const cx = x + CARD_W / 2;
 
+    // Type badge strip at card top
+    ctx.save();
+    ctx.fillStyle = hovered ? accent.border : (choice.type === 'new_weapon' ? '#aa6600' : choice.type === 'weapon_upgrade' ? '#661199' : '#1a3a6a');
+    ctx.fillRect(x + 1, y + 1, CARD_W - 2, 32);
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      choice.type === 'new_weapon' ? 'NEW WEAPON' : choice.type === 'weapon_upgrade' ? 'WEAPON UPGRADE' : 'STAT UPGRADE',
+      cx, y + 22,
+    );
+    ctx.restore();
+
     // Icon
     ctx.save();
     ctx.font      = '64px serif';
     ctx.textAlign = 'center';
-    ctx.fillText(choice.icon, cx, y + 88);
+    ctx.fillText(choice.icon, cx, y + 100);
     ctx.restore();
 
     // Upgrade name
     ctx.save();
     ctx.font        = 'bold 36px monospace';
-    ctx.fillStyle   = hovered ? '#88ccff' : '#cce0ff';
+    ctx.fillStyle   = accent.name;
     ctx.textAlign   = 'center';
-    ctx.shadowColor = hovered ? 'rgba(80,160,255,0.6)' : 'transparent';
+    ctx.shadowColor = hovered ? accent.glow : 'transparent';
     ctx.shadowBlur  = hovered ? 8 : 0;
-    ctx.fillText(choice.name, cx, y + 152);
+    ctx.fillText(choice.name, cx, y + 158);
     ctx.restore();
 
     // Divider line
     ctx.strokeStyle = '#2a3a5a';
     ctx.lineWidth   = 1;
     ctx.beginPath();
-    ctx.moveTo(x + 40, y + 168); ctx.lineTo(x + CARD_W - 40, y + 168);
+    ctx.moveTo(x + 40, y + 175); ctx.lineTo(x + CARD_W - 40, y + 175);
     ctx.stroke();
 
     // Effect text (wrap long lines)
@@ -185,7 +246,7 @@ export class UISystem {
     ctx.font      = '28px monospace';
     ctx.fillStyle = '#88ffcc';
     ctx.textAlign = 'center';
-    this._wrapText(ctx, choice.effectText, cx, y + 218, CARD_W - 60, 36);
+    this._wrapText(ctx, choice.effectText, cx, y + 226, CARD_W - 60, 36);
     ctx.restore();
 
     // Level indicator

@@ -4,19 +4,27 @@ import { GameConfig } from '../config/GameConfig.js';
 const CFG = GameConfig.weapon;
 
 export class Projectile extends Entity {
-  // damage and speed can be overridden by WeaponSystem when applying upgrades
   constructor(x, y, dirX, dirY,
               damage = CFG.projectileDamage,
               speed  = CFG.projectileSpeed) {
     super(x, y);
-    this.dirX   = dirX; // unit vector — kept for knockback direction on hit
+    this.dirX   = dirX; // unit vector — used for knockback direction on hit
     this.dirY   = dirY;
     this.vx     = dirX * speed;
     this.vy     = dirY * speed;
     this.radius = CFG.projectileRadius;
     this.damage = damage;
     this.knockbackForce = CFG.knockbackForce;
-    this._age   = 0;
+
+    // Pierce: how many additional enemies this projectile passes through.
+    // 0 = deactivate on first hit. Set by ArcaneBolt based on its level.
+    this.pierceLeft = 0;
+
+    // Tracks which enemy objects have already been hit so a piercing
+    // projectile cannot hit the same enemy twice.
+    this._hitSet = new Set();
+
+    this._age = 0;
   }
 
   update(dt) {

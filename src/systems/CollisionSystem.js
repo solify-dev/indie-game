@@ -1,21 +1,17 @@
 import { GameConfig } from '../config/GameConfig.js';
 
-// Returns true when two circles overlap.
-// Uses squared distance — avoids an unnecessary sqrt.
 function circlesOverlap(ax, ay, ar, bx, by, br) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const r  = ar + br;
+  const dx = bx - ax, dy = by - ay, r = ar + br;
   return dx * dx + dy * dy <= r * r;
 }
 
 export class CollisionSystem {
   /**
-   * Checks all collisions for one frame.
+   * Handles all collisions for one frame.
    *
-   * Returns:
-   *   kills          – number of enemies killed this frame
-   *   damageNumbers  – [{ x, y, value }] for the DamageNumbers system
+   * Returns { kills, damageNumbers, shakeAmount }
+   *   kills          – enemies killed this frame (for the counter)
+   *   damageNumbers  – [{x, y, value}] positions for floating text
    *   shakeAmount    – > 0 when the player took a hit
    */
   update(player, enemies, projectiles, gameW, gameH, camera) {
@@ -27,21 +23,29 @@ export class CollisionSystem {
     for (const p of projectiles) {
       if (!p.active) continue;
 
-      // Remove projectiles that have left the visible area
       p.cullIfOffScreen(camera.x, camera.y, gameW, gameH);
       if (!p.active) continue;
 
       for (const e of enemies) {
         if (!e.active) continue;
+        if (p._hitSet.has(e)) continue; // already hit by this projectile
+
         if (circlesOverlap(p.x, p.y, p.radius, e.x, e.y, e.radius)) {
-          // Apply knockback in the projectile's travel direction
           const kbx = p.dirX * p.knockbackForce;
           const kby = p.dirY * p.knockbackForce;
           e.takeDamage(p.damage, kbx, kby);
           damageNumbers.push({ x: e.x, y: e.y - e.radius, value: p.damage });
-          p.active = false;
+          p._hitSet.add(e);
+
           if (!e.active) kills++;
-          break; // one projectile hits one enemy
+
+          // Pierce: continue through enemies until pierceLeft is exhausted
+          if (p.pierceLeft > 0) {
+            p.pierceLeft--;
+          } else {
+            p.active = false;
+            break; // no point checking more enemies
+          }
         }
       }
     }
