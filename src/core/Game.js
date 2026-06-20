@@ -5,7 +5,7 @@ import { Player }           from '../entities/Player.js';
 import { XPGem, gemTypeForValue } from '../entities/XPGem.js';
 import { drawBackground }   from '../systems/Renderer.js';
 import { UISystem }         from '../systems/UISystem.js';
-import { Spawner }          from '../systems/Spawner.js';
+import { WaveDirector }     from '../systems/WaveDirector.js';
 import { WeaponSystem }     from '../systems/WeaponSystem.js';
 import { CollisionSystem }  from '../systems/CollisionSystem.js';
 import { DamageNumbers }    from '../systems/DamageNumbers.js';
@@ -49,7 +49,7 @@ export class Game {
     this.enemies     = [];
     this.projectiles = [];
     this.xpGems      = [];
-    this.spawner     = new Spawner();
+    this.waveDir = new WaveDirector();
     this.weapons     = new WeaponSystem();
     this.passives    = new PassiveSystem();
     this.dmgNums     = new DamageNumbers();
@@ -179,7 +179,7 @@ export class Game {
     this.player.update(dt, this.input);
     this.camera.follow(this.player.x, this.player.y);
 
-    this.spawner.update(dt, this.elapsed, this.enemies, this.player, GW, GH);
+    this.waveDir.update(dt, this.elapsed, this.enemies, this.player, GW, GH);
 
     for (const e of this.enemies)     e.update(dt, this.player);
     for (const p of this.projectiles) p.update(dt);
@@ -244,8 +244,10 @@ export class Game {
 
     ctx.restore(); // end shake before drawing UI
 
+    const waveInfo = this.waveDir.getWaveInfo();
     this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills,
-      this.weapons.getHUDInfo(), this.passives.getHUDInfo());
+      this.weapons.getHUDInfo(), this.passives.getHUDInfo(), waveInfo);
+    if (this.state === 'playing') this.ui.drawWaveBanner(ctx, waveInfo);
 
     if (this.state === 'levelup') {
       // drawLevelUp returns card rects for click/hover hit-testing

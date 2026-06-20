@@ -11,7 +11,7 @@ export class UISystem {
   }
 
   // ── In-game HUD ─────────────────────────────────────────────────────────────
-  drawHUD(ctx, player, elapsed, fps, kills, weaponHUD = [], passiveHUD = []) {
+  drawHUD(ctx, player, elapsed, fps, kills, weaponHUD = [], passiveHUD = [], waveInfo = null) {
     const PAD = 30;
 
     // Title watermark
@@ -30,6 +30,17 @@ export class UISystem {
     ctx.shadowColor = 'rgba(100,160,255,0.9)'; ctx.shadowBlur = 14;
     ctx.fillText(`${mins}:${secs}`, this.gw / 2, PAD + 44);
     ctx.restore();
+
+    // Wave name — small subtitle under timer
+    if (waveInfo) {
+      ctx.save();
+      ctx.font      = '22px monospace';
+      ctx.fillStyle = 'rgba(160,200,255,0.5)';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillText(`Wave ${waveInfo.waveNumber}  ·  ${waveInfo.waveName}`, this.gw / 2, PAD + 76);
+      ctx.restore();
+    }
 
     // Kill counter
     ctx.save();
@@ -387,6 +398,38 @@ export class UISystem {
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(100,200,255,0.5)'; ctx.shadowBlur = 10;
     ctx.fillText('Press  R  to restart', cx, py + ph - 44);
+    ctx.restore();
+  }
+
+  drawWaveBanner(ctx, waveInfo) {
+    if (!waveInfo || waveInfo.bannerAlpha <= 0) return;
+    const a  = waveInfo.bannerAlpha;
+    const cx = this.gw / 2;
+    const cy = this.gh * 0.30;
+
+    ctx.save();
+
+    // Horizontal accent line behind text
+    ctx.strokeStyle = `rgba(100,180,255,${a * 0.35})`;
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 460, cy - 10); ctx.lineTo(cx + 460, cy - 10);
+    ctx.stroke();
+
+    // Main banner text
+    ctx.font        = 'bold 68px monospace';
+    ctx.fillStyle   = `rgba(200,230,255,${a})`;
+    ctx.textAlign   = 'center';
+    ctx.shadowColor = `rgba(80,160,255,${a * 0.8})`;
+    ctx.shadowBlur  = 28;
+    ctx.fillText(waveInfo.bannerText, cx, cy + 30);
+
+    // Subtitle
+    ctx.font        = '28px monospace';
+    ctx.fillStyle   = `rgba(140,190,255,${a * 0.7})`;
+    ctx.shadowBlur  = 0;
+    ctx.fillText('the enemy grows stronger', cx, cy + 72);
+
     ctx.restore();
   }
 

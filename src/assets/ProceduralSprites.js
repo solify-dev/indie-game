@@ -60,43 +60,54 @@ export function getPlayerSprite() {
 
 // ── Enemy sprites ─────────────────────────────────────────────────────────────
 const ENEMY_PALETTE = {
-  slime: { body: '#33bb44', dark: '#1a6625', eye: '#aaffaa' },
-  bat:   { body: '#7733aa', dark: '#441166', eye: '#cc88ff' },
+  slime:   { body: '#33bb44', dark: '#1a6625', eye: '#aaffaa', bodyScale: 1.0 },
+  bat:     { body: '#7733aa', dark: '#441166', eye: '#cc88ff', bodyScale: 1.0 },
+  brute:   { body: '#554466', dark: '#2a1133', eye: '#ff5500', bodyScale: 1.5  },
+  crawler: { body: '#6a7a33', dark: '#3a4411', eye: '#bbdd44', bodyScale: 0.78 },
+  elite:   { body: '#bb7700', dark: '#5a2200', eye: '#ffee22', bodyScale: 1.75 },
 };
 
 export function getEnemySprite(type) {
   if (cache[type]) return cache[type];
 
   const col = ENEMY_PALETTE[type] ?? ENEMY_PALETTE.slime;
+  const bs  = col.bodyScale ?? 1.0;
   const c = makeCanvas(), ctx = c.getContext('2d');
   const cx = SPRITE_SIZE / 2, cy = SPRITE_SIZE / 2;
 
-  const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 75);
+  const glow = ctx.createRadialGradient(cx, cy, 10 * bs, cx, cy, 75 * bs);
   glow.addColorStop(0, col.body + '55'); glow.addColorStop(1, col.body + '00');
   ctx.fillStyle = glow; ctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
 
+  if (type === 'elite') {
+    const eliteGlow = ctx.createRadialGradient(cx, cy, 40 * bs, cx, cy, 85 * bs);
+    eliteGlow.addColorStop(0, 'rgba(255,180,0,0.4)');
+    eliteGlow.addColorStop(1, 'rgba(255,180,0,0)');
+    ctx.fillStyle = eliteGlow; ctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+  }
+
   ctx.fillStyle = col.body;
-  ctx.beginPath(); ctx.ellipse(cx, cy + 10, 35, 40, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cy + 10, 35 * bs, 40 * bs, 0, 0, Math.PI * 2); ctx.fill();
 
   ctx.fillStyle = col.dark;
-  ctx.beginPath(); ctx.arc(cx, cy - 20, 28, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy - 20, 28 * bs, 0, Math.PI * 2); ctx.fill();
 
-  for (const ex of [cx - 10, cx + 10]) {
+  for (const ex of [cx - 10 * bs, cx + 10 * bs]) {
     const eg = ctx.createRadialGradient(ex, cy - 22, 1, ex, cy - 22, 8);
     eg.addColorStop(0, '#fff'); eg.addColorStop(1, col.eye);
     ctx.fillStyle = eg;
-    ctx.beginPath(); ctx.arc(ex, cy - 22, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex, cy - 22, 7 * bs, 0, Math.PI * 2); ctx.fill();
   }
 
   ctx.strokeStyle = col.eye; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(cx, cy - 12, 12, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy - 12 * bs, 12 * bs, 0.2, Math.PI - 0.2); ctx.stroke();
 
   ctx.strokeStyle = col.dark; ctx.lineWidth = 6; ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(cx - 35, cy + 5); ctx.lineTo(cx - 55, cy - 5);
-  ctx.moveTo(cx - 35, cy + 5); ctx.lineTo(cx - 58, cy + 8);
-  ctx.moveTo(cx + 35, cy + 5); ctx.lineTo(cx + 55, cy - 5);
-  ctx.moveTo(cx + 35, cy + 5); ctx.lineTo(cx + 58, cy + 8);
+  ctx.moveTo(cx - 35 * bs, cy + 5 * bs); ctx.lineTo(cx - 55 * bs, cy - 5 * bs);
+  ctx.moveTo(cx - 35 * bs, cy + 5 * bs); ctx.lineTo(cx - 58 * bs, cy + 8 * bs);
+  ctx.moveTo(cx + 35 * bs, cy + 5 * bs); ctx.lineTo(cx + 55 * bs, cy - 5 * bs);
+  ctx.moveTo(cx + 35 * bs, cy + 5 * bs); ctx.lineTo(cx + 58 * bs, cy + 8 * bs);
   ctx.stroke();
 
   cache[type] = c;

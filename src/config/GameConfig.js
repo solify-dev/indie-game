@@ -34,6 +34,9 @@ export const GameConfig = {
       contactDamage:   12,
       xpValue:         1,   // drops a blue gem
     },
+    brute:   { speed: 48,  hp: 180, collisionRadius: 38, contactDamage: 16, xpValue: 15 },
+    crawler: { speed: 105, hp: 60,  collisionRadius: 21, contactDamage: 10, xpValue: 8  },
+    elite:   { speed: 68,  hp: 320, collisionRadius: 46, contactDamage: 22, xpValue: 30 },
   },
 
   // ── Weapon (starter auto-shooter) ────────────────────────────────────────
@@ -62,16 +65,9 @@ export const GameConfig = {
 
   // ── Spawner ───────────────────────────────────────────────────────────────
   spawner: {
-    margin:   160,
-    baseRate: 0.8,
-    maxRate:  6,
-    rampTime: 30,
-    schedule: [
-      [  0, { slime: 1,    bat: 0    }],
-      [ 30, { slime: 0.75, bat: 0.25 }],
-      [ 90, { slime: 0.5,  bat: 0.5  }],
-      [180, { slime: 0.35, bat: 0.65 }],
-    ],
+    margin:     160,
+    maxEnemies: 150,   // hard cap — delay spawning above this
+    maxRate:    8,     // absolute ceiling on spawn/sec
   },
 
   // ── Damage Numbers ────────────────────────────────────────────────────────

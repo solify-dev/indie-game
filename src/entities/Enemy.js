@@ -6,14 +6,14 @@ import { normalise }      from '../core/MathUtils.js';
 const { SPRITE_SIZE } = GameConfig;
 
 export class Enemy extends Entity {
-  constructor(x, y, type = 'slime') {
+  constructor(x, y, type = 'slime', { hpScale = 1, speedScale = 1 } = {}) {
     super(x, y);
 
     const def = GameConfig.enemies[type] ?? GameConfig.enemies.slime;
     this.type          = type;
-    this.speed         = def.speed;
-    this.hp            = def.hp;
-    this.maxHp         = def.hp;
+    this.speed         = def.speed  * speedScale;
+    this.hp            = Math.round(def.hp * hpScale);
+    this.maxHp         = this.hp;
     this.radius        = def.collisionRadius;
     this.contactDamage = def.contactDamage;
     this.xpValue       = def.xpValue;
