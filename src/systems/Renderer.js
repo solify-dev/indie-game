@@ -1,32 +1,37 @@
-const TILE = 120; // grid cell size in world pixels
+import { GameConfig } from '../config/GameConfig.js';
 
-// Draws an infinite-feeling scrolling grid background.
+const CFG = GameConfig.renderer;
+
+// Draws the infinite-feeling scrolling grid background.
+// The grid offsets by camera position each frame so it appears to scroll
+// with the world even though the canvas is a fixed 1920×1080 buffer.
 export function drawBackground(ctx, camera, gameWidth, gameHeight) {
-  // Dark base fill
-  ctx.fillStyle = '#0d0d1a';
+  // Solid dark fill
+  ctx.fillStyle = CFG.background;
   ctx.fillRect(0, 0, gameWidth, gameHeight);
 
-  // Grid lines — offset by camera position so they scroll with the world
-  const offsetX = ((-camera.x) % TILE + TILE) % TILE;
-  const offsetY = ((-camera.y) % TILE + TILE) % TILE;
+  // Grid lines — modulo-offset keeps them snapping to world coordinates
+  const tile    = CFG.gridSize;
+  const offsetX = ((-camera.x) % tile + tile) % tile;
+  const offsetY = ((-camera.y) % tile + tile) % tile;
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+  ctx.strokeStyle = CFG.gridColour;
   ctx.lineWidth   = 1;
 
-  for (let x = offsetX - TILE; x < gameWidth + TILE; x += TILE) {
+  for (let x = offsetX - tile; x < gameWidth + tile; x += tile) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, gameHeight);
     ctx.stroke();
   }
-  for (let y = offsetY - TILE; y < gameHeight + TILE; y += TILE) {
+  for (let y = offsetY - tile; y < gameHeight + tile; y += tile) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(gameWidth, y);
     ctx.stroke();
   }
 
-  // Subtle dark vignette around the edges
+  // Subtle vignette to draw the eye toward the centre
   const vignette = ctx.createRadialGradient(
     gameWidth / 2, gameHeight / 2, gameHeight * 0.2,
     gameWidth / 2, gameHeight / 2, gameHeight * 0.85,

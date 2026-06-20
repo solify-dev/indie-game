@@ -1,7 +1,9 @@
-// Generates and caches procedural 182×182 placeholder sprites.
-// Replace the canvas draw calls with image loads when real art is ready.
+// Generates and caches procedural placeholder sprites on off-screen canvases.
+// Swap these out for real image files later — the cache key interface stays the same.
 
-const SPRITE_SIZE = 182;
+import { GameConfig } from '../config/GameConfig.js';
+
+const { SPRITE_SIZE } = GameConfig;
 const cache = {};
 
 function makeCanvas(w = SPRITE_SIZE, h = SPRITE_SIZE) {
@@ -20,7 +22,7 @@ export function getPlayerSprite() {
   const cx  = SPRITE_SIZE / 2;
   const cy  = SPRITE_SIZE / 2;
 
-  // Outer glow
+  // Soft outer glow
   const glow = ctx.createRadialGradient(cx, cy, 20, cx, cy, 80);
   glow.addColorStop(0, 'rgba(80,160,255,0.35)');
   glow.addColorStop(1, 'rgba(80,160,255,0)');
@@ -78,24 +80,23 @@ export function getPlayerSprite() {
   return c;
 }
 
-// ── Enemy sprite variants ─────────────────────────────────────────────────────
-export function getEnemySprite(type = 'shambler') {
-  const key = 'enemy_' + type;
-  if (cache[key]) return cache[key];
+// ── Enemy sprites — one variant per enemy type defined in GameConfig ──────────
+// Palette maps type name → { body, dark, eye } colours.
+const ENEMY_PALETTE = {
+  slime: { body: '#33bb44', dark: '#1a6625', eye: '#aaffaa' },
+  bat:   { body: '#7733aa', dark: '#441166', eye: '#cc88ff' },
+};
 
+export function getEnemySprite(type) {
+  if (cache[type]) return cache[type];
+
+  const col = ENEMY_PALETTE[type] ?? ENEMY_PALETTE.slime;
   const c   = makeCanvas();
   const ctx = c.getContext('2d');
   const cx  = SPRITE_SIZE / 2;
   const cy  = SPRITE_SIZE / 2;
 
-  const palette = {
-    shambler: { body: '#cc2222', dark: '#881111', eye: '#ff6666' },
-    rusher:   { body: '#cc6600', dark: '#993300', eye: '#ffcc44' },
-    brute:    { body: '#662288', dark: '#441155', eye: '#dd44ff' },
-  };
-  const col = palette[type] || palette.shambler;
-
-  // Glow
+  // Ambient glow
   const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 75);
   glow.addColorStop(0, col.body + '55');
   glow.addColorStop(1, col.body + '00');
@@ -114,7 +115,7 @@ export function getEnemySprite(type = 'shambler') {
   ctx.arc(cx, cy - 20, 28, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eyes (glowing gradient)
+  // Glowing eyes
   for (const ex of [cx - 10, cx + 10]) {
     const eg = ctx.createRadialGradient(ex, cy - 22, 1, ex, cy - 22, 8);
     eg.addColorStop(0, '#fff');
@@ -143,14 +144,13 @@ export function getEnemySprite(type = 'shambler') {
   ctx.moveTo(cx + 35, cy + 5); ctx.lineTo(cx + 58, cy + 8);
   ctx.stroke();
 
-  cache[key] = c;
+  cache[type] = c;
   return c;
 }
 
 // ── XP Gem: glowing diamond ───────────────────────────────────────────────────
 export function getGemSprite(size = 'small') {
-  const key = 'gem_' + size;
-  if (cache[key]) return cache[key];
+  if (cache['gem_' + size]) return cache['gem_' + size];
 
   const dim = size === 'small' ? 32 : 48;
   const c   = makeCanvas(dim, dim);
@@ -166,7 +166,7 @@ export function getGemSprite(size = 'small') {
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, dim, dim);
 
-  // Diamond
+  // Diamond shape
   ctx.fillStyle = '#00ffaa';
   ctx.beginPath();
   ctx.moveTo(cx,     cy - r);
@@ -185,6 +185,6 @@ export function getGemSprite(size = 'small') {
   ctx.closePath();
   ctx.fill();
 
-  cache[key] = c;
+  cache['gem_' + size] = c;
   return c;
 }

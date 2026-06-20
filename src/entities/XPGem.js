@@ -1,48 +1,45 @@
+import { Entity }      from '../core/Entity.js';
+import { GameConfig }  from '../config/GameConfig.js';
 import { getGemSprite } from '../assets/ProceduralSprites.js';
+import { distance }    from '../core/MathUtils.js';
 
-const MAGNET_RADIUS = 90;
-const MAGNET_SPEED  = 380;
-const BOB_SPEED     = 2.2; // radians/sec
+const CFG = GameConfig.gems;
 
-export class XPGem {
+export class XPGem extends Entity {
   constructor(x, y, value = 1) {
-    this.x      = x;
-    this.y      = y;
+    super(x, y);
     this.value  = value;
-    this.active = true;
-    this._age   = Math.random() * Math.PI * 2; // phase offset for bob
-    this._sprite = getGemSprite(value >= 3 ? 'large' : 'small');
+    this.radius = CFG.collectRadius;
+
+    // Larger gems for higher XP values
     this._size   = value >= 3 ? 48 : 32;
+    this._sprite = getGemSprite(value >= 3 ? 'large' : 'small');
+    this._age    = Math.random() * Math.PI * 2; // phase offset so gems don't all bob in sync
   }
 
   update(dt, player) {
-    this._age += BOB_SPEED * dt;
+    this._age += CFG.bobSpeed * dt;
 
-    const dx  = player.x - this.x;
-    const dy  = player.y - this.y;
-    const d   = Math.sqrt(dx * dx + dy * dy);
+    const d = distance(this.x, this.y, player.x, player.y);
 
-    // Pull toward player when inside magnet radius
-    if (d < MAGNET_RADIUS && d > 0) {
-      this.x += (dx / d) * MAGNET_SPEED * dt;
-      this.y += (dy / d) * MAGNET_SPEED * dt;
+    // Fly toward player once inside magnet radius
+    if (d < CFG.magnetRadius && d > 0) {
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      this.x += (dx / d) * CFG.magnetSpeed * dt;
+      this.y += (dy / d) * CFG.magnetSpeed * dt;
     }
 
-    // Collect when touching player
-    if (d < player.collisionRadius + this._size / 2) {
-      player.xp += this.value;
-      if (player.xp >= player.xpToNext) {
-        player.xp       -= player.xpToNext;
-        player.level    += 1;
-        player.xpToNext  = Math.floor(player.xpToNext * 1.15);
-      }
+    // Collect on contact — player handles the XP and leveling
+    if (d < player.radius + this._size / 2) {
+      player.gainXP(this.value);
       this.active = false;
     }
   }
 
   draw(ctx, camera) {
     const { x: sx, y: sy } = camera.toScreen(this.x, this.y);
-    const bob  = Math.sin(this._age) * 4;
+    const bob  = Math.sin(this._age) * 4;  // gentle up/down hover
     const half = this._size / 2;
 
     ctx.save();

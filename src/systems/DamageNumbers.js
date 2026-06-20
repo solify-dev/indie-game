@@ -1,46 +1,46 @@
-const LIFETIME  = 0.85; // seconds
-const RISE_SPEED = 80;  // world px/s upward
+import { GameConfig } from '../config/GameConfig.js';
+
+const CFG = GameConfig.damageNumbers;
 
 export class DamageNumbers {
   constructor() {
-    this._numbers = [];
+    this._pool = [];
   }
 
   add(worldX, worldY, value) {
-    this._numbers.push({
-      x: worldX,
-      y: worldY,
+    this._pool.push({
+      x:     worldX,
+      y:     worldY,
       value,
-      age: 0,
-      // Slight random horizontal drift so overlapping numbers spread out
-      dx: (Math.random() - 0.5) * 40,
+      age:   0,
+      drift: (Math.random() - 0.5) * CFG.drift, // horizontal spread
     });
   }
 
   update(dt) {
-    for (const n of this._numbers) n.age += dt;
-    this._numbers = this._numbers.filter(n => n.age < LIFETIME);
+    for (const n of this._pool) n.age += dt;
+    this._pool = this._pool.filter(n => n.age < CFG.lifetime);
   }
 
   draw(ctx, camera) {
-    for (const n of this._numbers) {
-      const t  = n.age / LIFETIME;          // 0 → 1
-      const alpha = 1 - t * t;             // fade out
-      const rise  = n.age * RISE_SPEED;
-      const drift = n.dx * n.age;
+    for (const n of this._pool) {
+      const t     = n.age / CFG.lifetime;       // 0 → 1
+      const alpha = 1 - t * t;                  // quadratic fade
+      const rise  = n.age * CFG.riseSpeed;
+      const drift = n.drift * n.age;
 
       const { x: sx, y: sy } = camera.toScreen(n.x + drift, n.y - rise);
 
       ctx.save();
       ctx.globalAlpha  = alpha;
-      ctx.font         = `bold ${Math.round(26 + t * -6)}px monospace`;
-      ctx.fillStyle    = '#ffe855';
-      ctx.strokeStyle  = '#331a00';
-      ctx.lineWidth    = 3;
+      ctx.font         = `bold ${CFG.fontSize}px monospace`;
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.strokeText(`${n.value}`, sx, sy);
-      ctx.fillText(`${n.value}`, sx, sy);
+      ctx.strokeStyle  = '#331a00';
+      ctx.lineWidth    = 3;
+      ctx.strokeText(n.value, sx, sy);
+      ctx.fillStyle = '#ffe855';
+      ctx.fillText(n.value, sx, sy);
       ctx.restore();
     }
   }

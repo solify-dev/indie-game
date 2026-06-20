@@ -1,6 +1,8 @@
-import { Projectile } from '../entities/Projectile.js';
+import { Projectile }  from '../entities/Projectile.js';
+import { GameConfig }  from '../config/GameConfig.js';
+import { normalise }   from '../core/MathUtils.js';
 
-const FIRE_RATE = 0.6; // seconds between shots
+const CFG = GameConfig.weapon;
 
 export class WeaponSystem {
   constructor() {
@@ -13,23 +15,28 @@ export class WeaponSystem {
       return;
     }
 
-    // Nearest active enemy by squared distance
+    const nearest = this._findNearest(player, enemies);
+    if (!nearest) return; // no enemies yet — wait silently
+
+    const dx  = nearest.x - player.x;
+    const dy  = nearest.y - player.y;
+    const dir = normalise(dx, dy);
+
+    projectiles.push(new Projectile(player.x, player.y, dir.x, dir.y));
+    this._cooldown = CFG.fireRate;
+  }
+
+  // Returns the closest active enemy, or null.
+  _findNearest(player, enemies) {
     let nearest  = null;
     let bestDist = Infinity;
     for (const e of enemies) {
       if (!e.active) continue;
       const dx = e.x - player.x;
       const dy = e.y - player.y;
-      const d  = dx * dx + dy * dy;
+      const d  = dx * dx + dy * dy; // squared — fine for comparison
       if (d < bestDist) { bestDist = d; nearest = e; }
     }
-
-    if (!nearest) return; // no enemies — wait
-
-    const dx  = nearest.x - player.x;
-    const dy  = nearest.y - player.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    projectiles.push(new Projectile(player.x, player.y, dx / len, dy / len));
-    this._cooldown = FIRE_RATE;
+    return nearest;
   }
 }

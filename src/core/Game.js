@@ -1,3 +1,4 @@
+import { GameConfig }       from '../config/GameConfig.js';
 import { Input }            from './Input.js';
 import { Camera }           from './Camera.js';
 import { Player }           from '../entities/Player.js';
@@ -9,24 +10,21 @@ import { WeaponSystem }     from '../systems/WeaponSystem.js';
 import { CollisionSystem }  from '../systems/CollisionSystem.js';
 import { DamageNumbers }    from '../systems/DamageNumbers.js';
 
-const GAME_W      = 1920;
-const GAME_H      = 1080;
-const SHAKE_DECAY = 0.88; // per-frame exponential decay
+const { WIDTH: GW, HEIGHT: GH } = GameConfig;
 
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx    = canvas.getContext('2d');
-    canvas.width  = GAME_W;
-    canvas.height = GAME_H;
+    canvas.width  = GW;
+    canvas.height = GH;
 
-    // Systems that survive a reset
+    // These survive across resets
     this.input     = new Input();
-    this.camera    = new Camera(GAME_W, GAME_H);
-    this.ui        = new UISystem(GAME_W, GAME_H);
+    this.camera    = new Camera(GW, GH);
+    this.ui        = new UISystem(GW, GH);
     this.collision = new CollisionSystem();
 
-    this._shake  = 0;
     this._lastTs = null;
 
     this._setupScaling();
@@ -38,7 +36,7 @@ export class Game {
     this._reset();
   }
 
-  // Re-initialise all per-run state without touching canvas / input / UI
+  // Re-initialise all per-run state.  Does not touch canvas / input / UI.
   _reset() {
     this.player      = new Player(0, 0);
     this.enemies     = [];
@@ -60,13 +58,14 @@ export class Game {
     this.camera.follow(0, 0);
   }
 
+  // Scale the CSS size of the canvas to fill the window while keeping 16:9.
   _setupScaling() {
     const scale = Math.min(
-      window.innerWidth  / GAME_W,
-      window.innerHeight / GAME_H,
+      window.innerWidth  / GW,
+      window.innerHeight / GH,
     );
-    this.canvas.style.width  = `${GAME_W * scale}px`;
-    this.canvas.style.height = `${GAME_H * scale}px`;
+    this.canvas.style.width  = `${GW * scale}px`;
+    this.canvas.style.height = `${GH * scale}px`;
   }
 
   start() {
@@ -74,6 +73,7 @@ export class Game {
   }
 
   _loop(timestamp) {
+    // Cap dt at 100 ms so the game doesn't jump forward on tab-blur resume
     const dt = this._lastTs === null
       ? 0
       : Math.min((timestamp - this._lastTs) / 1000, 0.1);
@@ -85,10 +85,11 @@ export class Game {
     requestAnimationFrame(ts => this._loop(ts));
   }
 
+  // ── Update ────────────────────────────────────────────────────────────────
   _update(dt) {
     this.elapsed += dt;
 
-    // Rolling FPS
+    // Rolling FPS — recalculated once per second
     this._fpsAcc += dt;
     this._fpsCnt += 1;
     if (this._fpsAcc >= 1) {
@@ -102,7 +103,7 @@ export class Game {
 
     this.spawner.update(
       dt, this.elapsed, this.enemies,
-      this.player, GAME_W, GAME_H,
+      this.player, GW, GH,
     );
 
     for (const e of this.enemies)     e.update(dt, this.player);
@@ -114,27 +115,26 @@ export class Game {
 
     const result = this.collision.update(
       this.player, this.enemies, this.projectiles,
-      GAME_W, GAME_H, this.camera,
+      GW, GH, this.camera,
     );
 
     this.kills  += result.kills;
     this._shake += result.shakeAmount;
 
-    // Spawn XP gems for newly killed enemies (still in array, not yet purged)
+    // Spawn an XP gem at the position of each enemy killed this frame
     for (const e of this.enemies) {
-      if (!e.active) {
-        this.xpGems.push(new XPGem(e.x, e.y, e.xpValue));
-      }
+      if (!e.active) this.xpGems.push(new XPGem(e.x, e.y, e.xpValue));
     }
 
     for (const dn of result.damageNumbers) {
       this.dmgNums.add(dn.x, dn.y, dn.value);
     }
 
-    this._shake *= SHAKE_DECAY;
+    // Exponentially decay screen shake toward zero
+    this._shake *= GameConfig.shake.decay;
     if (this._shake < 0.5) this._shake = 0;
 
-    // Purge dead entities
+    // Remove dead / collected entities
     this.enemies     = this.enemies.filter(e => e.active);
     this.projectiles = this.projectiles.filter(p => p.active);
     this.xpGems      = this.xpGems.filter(g => g.active);
@@ -142,10 +142,11 @@ export class Game {
     if (this.player.isDead) this.state = 'gameover';
   }
 
+  // ── Draw ──────────────────────────────────────────────────────────────────
   _draw() {
     const { ctx } = this;
 
-    // Apply screen shake as a canvas translation
+    // Offset the entire world by a random shake amount
     ctx.save();
     if (this._shake > 0) {
       ctx.translate(
@@ -154,7 +155,7 @@ export class Game {
       );
     }
 
-    drawBackground(ctx, this.camera, GAME_W, GAME_H);
+    drawBackground(ctx, this.camera, GW, GH);
 
     for (const g of this.xpGems)      g.draw(ctx, this.camera);
     for (const e of this.enemies)     e.draw(ctx, this.camera);
@@ -162,7 +163,7 @@ export class Game {
     this.player.draw(ctx, this.camera);
     this.dmgNums.draw(ctx, this.camera);
 
-    ctx.restore(); // end shake transform — HUD is drawn without shake
+    ctx.restore(); // end shake — HUD is drawn without any shake offset
 
     this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills);
 

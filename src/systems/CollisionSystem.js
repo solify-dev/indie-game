@@ -1,5 +1,8 @@
-// Fast circle-circle overlap test (no sqrt)
-function overlaps(ax, ay, ar, bx, by, br) {
+import { GameConfig } from '../config/GameConfig.js';
+
+// Returns true when two circles overlap.
+// Uses squared distance — avoids an unnecessary sqrt.
+function circlesOverlap(ax, ay, ar, bx, by, br) {
   const dx = bx - ax;
   const dy = by - ay;
   const r  = ar + br;
@@ -8,42 +11,47 @@ function overlaps(ax, ay, ar, bx, by, br) {
 
 export class CollisionSystem {
   /**
-   * Returns { kills, damageNumbers, shakeAmount }
-   * damageNumbers: Array of { x, y, value } for floating text
-   * shakeAmount:   > 0 when the player was hit this frame
+   * Checks all collisions for one frame.
+   *
+   * Returns:
+   *   kills          – number of enemies killed this frame
+   *   damageNumbers  – [{ x, y, value }] for the DamageNumbers system
+   *   shakeAmount    – > 0 when the player took a hit
    */
-  update(player, enemies, projectiles, xpGems, gameW, gameH, camera) {
-    let kills          = 0;
-    let shakeAmount    = 0;
+  update(player, enemies, projectiles, gameW, gameH, camera) {
+    let kills         = 0;
+    let shakeAmount   = 0;
     const damageNumbers = [];
 
-    // ── Projectile vs Enemy ───────────────────────────────────────
+    // ── Projectile vs Enemy ───────────────────────────────────────────────────
     for (const p of projectiles) {
       if (!p.active) continue;
+
+      // Remove projectiles that have left the visible area
       p.cullIfOffScreen(camera.x, camera.y, gameW, gameH);
       if (!p.active) continue;
 
       for (const e of enemies) {
         if (!e.active) continue;
-        if (overlaps(p.x, p.y, p.radius, e.x, e.y, e.collisionRadius)) {
-          // Knockback direction = projectile direction
+        if (circlesOverlap(p.x, p.y, p.radius, e.x, e.y, e.radius)) {
+          // Apply knockback in the projectile's travel direction
           const kbx = p.dirX * p.knockbackForce;
           const kby = p.dirY * p.knockbackForce;
           e.takeDamage(p.damage, kbx, kby);
-          damageNumbers.push({ x: e.x, y: e.y - e.collisionRadius, value: p.damage });
+          damageNumbers.push({ x: e.x, y: e.y - e.radius, value: p.damage });
           p.active = false;
           if (!e.active) kills++;
-          break;
+          break; // one projectile hits one enemy
         }
       }
     }
 
-    // ── Enemy vs Player ───────────────────────────────────────────
+    // ── Enemy vs Player ───────────────────────────────────────────────────────
     for (const e of enemies) {
       if (!e.active) continue;
-      if (overlaps(e.x, e.y, e.collisionRadius, player.x, player.y, player.collisionRadius)) {
+      if (circlesOverlap(e.x, e.y, e.radius, player.x, player.y, player.radius)) {
         const hit = player.takeDamage(e.contactDamage);
-        if (hit) shakeAmount = 7;
+        if (hit) shakeAmount = GameConfig.shake.onHit;
       }
     }
 

@@ -1,58 +1,50 @@
+import { Entity }         from '../core/Entity.js';
+import { GameConfig }     from '../config/GameConfig.js';
 import { getEnemySprite } from '../assets/ProceduralSprites.js';
+import { normalise }      from '../core/MathUtils.js';
 
-const SPRITE_SIZE = 182;
+const { SPRITE_SIZE } = GameConfig;
 
-export const ENEMY_TYPES = {
-  slime: { speed: 65,  hp: 40,  collisionRadius: 26, contactDamage: 8,  xpValue: 2 },
-  bat:   { speed: 155, hp: 18,  collisionRadius: 18, contactDamage: 12, xpValue: 1 },
-};
-
-export class Enemy {
+export class Enemy extends Entity {
   constructor(x, y, type = 'slime') {
-    const def   = ENEMY_TYPES[type] || ENEMY_TYPES.slime;
-    this.x      = x;
-    this.y      = y;
-    this.type   = type;
-    this.speed  = def.speed;
-    this.hp     = def.hp;
-    this.maxHp  = def.hp;
-    this.collisionRadius = def.collisionRadius;
-    this.contactDamage   = def.contactDamage;
-    this.xpValue = def.xpValue;
-    this.active  = true;
+    super(x, y);
 
-    // Knockback velocity
-    this._vx = 0;
-    this._vy = 0;
+    const def = GameConfig.enemies[type] ?? GameConfig.enemies.slime;
+    this.type          = type;
+    this.speed         = def.speed;
+    this.hp            = def.hp;
+    this.maxHp         = def.hp;
+    this.radius        = def.collisionRadius;
+    this.contactDamage = def.contactDamage;
+    this.xpValue       = def.xpValue;
 
     this._flashTimer = 0;
     this._sprite     = getEnemySprite(type);
   }
 
-  takeDamage(amount, knockbackX = 0, knockbackY = 0) {
+  // amount   – HP to remove
+  // kbx/kby  – knockback impulse in px/s (velocity added immediately)
+  takeDamage(amount, kbx = 0, kby = 0) {
     this.hp -= amount;
+    this.vx += kbx;
+    this.vy += kby;
     this._flashTimer = 0.1;
-    this._vx = knockbackX;
-    this._vy = knockbackY;
     if (this.hp <= 0) this.active = false;
   }
 
   update(dt, player) {
-    // Chase player
-    const dx  = player.x - this.x;
-    const dy  = player.y - this.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
+    // Chase the player
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
+    const dir = normalise(dx, dy);
+    this.x += dir.x * this.speed * dt;
+    this.y += dir.y * this.speed * dt;
 
-    if (len > 0) {
-      this.x += (dx / len) * this.speed * dt;
-      this.y += (dy / len) * this.speed * dt;
-    }
-
-    // Apply and decay knockback
-    this.x  += this._vx * dt;
-    this.y  += this._vy * dt;
-    this._vx *= Math.pow(0.02, dt); // rapid friction
-    this._vy *= Math.pow(0.02, dt);
+    // Apply and rapidly decay knockback velocity
+    this._applyVelocity(dt);
+    const friction = Math.pow(0.02, dt); // approaches zero quickly
+    this.vx *= friction;
+    this.vy *= friction;
 
     if (this._flashTimer > 0) this._flashTimer -= dt;
   }
@@ -65,32 +57,35 @@ export class Enemy {
     ctx.translate(sx, sy);
     ctx.drawImage(this._sprite, -half, -half, SPRITE_SIZE, SPRITE_SIZE);
 
-    // White hit-flash overlay
+    // White flash overlay on hit
     if (this._flashTimer > 0) {
       ctx.globalAlpha = 0.65;
       ctx.fillStyle   = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, 0, this.collisionRadius + 4, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-
     ctx.restore();
 
-    // Health bar (drawn in world space above the sprite)
+    // Health bar — only shown once the enemy has been damaged
     if (this.hp < this.maxHp) {
-      const bw = 60;
-      const bh = 6;
-      const bx = sx - bw / 2;
-      const by = sy - this.collisionRadius - 18;
-
-      ctx.fillStyle = '#331111';
-      ctx.fillRect(bx, by, bw, bh);
-      ctx.fillStyle = '#ee3333';
-      ctx.fillRect(bx, by, bw * (this.hp / this.maxHp), bh);
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth   = 1;
-      ctx.strokeRect(bx, by, bw, bh);
+      this._drawHealthBar(ctx, sx, sy);
     }
+  }
+
+  _drawHealthBar(ctx, sx, sy) {
+    const bw = 60;
+    const bh = 6;
+    const bx = sx - bw / 2;
+    const by = sy - this.radius - 18;
+
+    ctx.fillStyle = '#331111';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#ee3333';
+    ctx.fillRect(bx, by, bw * (this.hp / this.maxHp), bh);
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(bx, by, bw, bh);
   }
 }
