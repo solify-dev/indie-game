@@ -1,117 +1,55 @@
-import { GameConfig } from '../config/GameConfig.js';
+// UpgradeSystem owns the level-up pool logic and applies chosen cards.
+// All item/weapon definitions live in their own data files — this file
+// only orchestrates: gather choices, shuffle, route apply() calls.
 
-// ── Stat upgrades ─────────────────────────────────────────────────────────────
-// These are passive bonuses applied to the Player object.
-// Weapon-specific upgrades are handled via WeaponSystem.getUpgradeChoices().
+const HEAL_CARD = {
+  type:         'heal',
+  id:           'heal',
+  name:         'Life Surge',
+  icon:         '❤',
+  effectText:   'Restore 40 HP now',
+  currentLevel: 0,
+  maxLevel:     1,
+};
 
-const STAT_UPGRADES = [
-  {
-    id:       'weapon_damage',
-    name:     'Arcane Power',
-    icon:     '⚔',
-    maxLevel: 5,
-    effectText: '+25% damage (all weapons)',
-    apply: (player) => { player.weaponDamageMulti += 0.25; },
-  },
-  {
-    id:       'fire_rate',
-    name:     'Swiftcast',
-    icon:     '🌀',
-    maxLevel: 5,
-    effectText: '+20% attack speed (all weapons)',
-    apply: (player) => { player.weaponFireRateMulti += 0.20; },
-  },
-  {
-    id:       'proj_speed',
-    name:     'Swift Shots',
-    icon:     '💨',
-    maxLevel: 4,
-    effectText: '+25% projectile speed',
-    apply: (player) => { player.projectileSpeedMulti += 0.25; },
-  },
-  {
-    id:       'move_speed',
-    name:     'Fleet Feet',
-    icon:     '👟',
-    maxLevel: 5,
-    effectText: '+10% movement speed',
-    apply: (player) => { player.speed += GameConfig.player.speed * 0.10; },
-  },
-  {
-    id:       'max_hp',
-    name:     'Iron Body',
-    icon:     '🛡',
-    maxLevel: 5,
-    effectText: '+25 max HP  (also heals)',
-    apply: (player) => { player.maxHp += 25; player.hp += 25; },
-  },
-  {
-    id:       'heal',
-    name:     'Life Surge',
-    icon:     '❤',
-    maxLevel: 3,
-    effectText: 'Restore 30 HP now',
-    apply: (player) => { player.hp = Math.min(player.maxHp, player.hp + 30); },
-  },
-  {
-    id:       'magnet',
-    name:     'Soul Pull',
-    icon:     '🧲',
-    maxLevel: 4,
-    effectText: '+50 px XP magnet range',
-    apply: (player) => { player.magnetRadius += 50; },
-  },
-];
-
-// ── UpgradeSystem ─────────────────────────────────────────────────────────────
 export class UpgradeSystem {
-  constructor() {
-    this._ownedStats = new Map(); // statId → times taken
-  }
-
   /**
-   * Build a pool of up to 3 choices from:
-   *   1. Stat upgrades not yet maxed
-   *   2. Weapon-level upgrades (from WeaponSystem)
-   *   3. New weapons not yet owned (from WeaponSystem)
-   *
-   * The pool is shuffled, then trimmed to 3.
+   * Build a pool of up to 3 choices from weapon and passive systems combined,
+   * then shuffle and trim. Pads with heal cards if the pool has fewer than 3.
    */
-  pickThree(weaponSystem) {
-    const statCards = STAT_UPGRADES
-      .filter(u => (this._ownedStats.get(u.id) ?? 0) < u.maxLevel)
-      .map(u => ({
-        type:         'stat',
-        id:           u.id,
-        name:         u.name,
-        icon:         u.icon,
-        effectText:   u.effectText,
-        currentLevel: this._ownedStats.get(u.id) ?? 0,
-        maxLevel:     u.maxLevel,
-      }));
-
-    const weaponCards = weaponSystem.getUpgradeChoices();
-
-    const pool = [...statCards, ...weaponCards];
+  pickThree(weaponSystem, passiveSystem) {
+    const pool = [
+      ...weaponSystem.getUpgradeChoices(),
+      ...passiveSystem.getUpgradeChoices(),
+    ];
     this._shuffle(pool);
-    return pool.slice(0, 3);
+    const choices = pool.slice(0, 3);
+
+    // Fallback: fill empty slots with heal cards so the menu is never empty
+    while (choices.length < 3) {
+      choices.push({ ...HEAL_CARD });
+    }
+    return choices;
   }
 
   /**
-   * Apply a chosen upgrade card.
-   * choice.type determines which system handles it.
+   * Apply a chosen card. Routes by choice.type to the right system.
    */
-  apply(choice, player, weaponSystem) {
-    if (choice.type === 'stat') {
-      const u = STAT_UPGRADES.find(s => s.id === choice.id);
-      if (!u) return;
-      const newLevel = (this._ownedStats.get(choice.id) ?? 0) + 1;
-      this._ownedStats.set(choice.id, newLevel);
-      u.apply(player, newLevel);
-    } else if (choice.type === 'weapon_upgrade') {
-      weaponSystem.upgradeWeapon(choice.id);
-    } else if (choice.type === 'new_weapon') {
-      weaponSystem.addWeapon(choice.id);
+  apply(choice, player, weaponSystem, passiveSystem) {
+    switch (choice.type) {
+      case 'new_weapon':
+        weaponSystem.addWeapon(choice.id);
+        break;
+      case 'weapon_upgrade':
+        weaponSystem.upgradeWeapon(choice.id);
+        break;
+      case 'new_passive':
+      case 'passive_upgrade':
+        passiveSystem.addOrUpgrade(choice.id, player);
+        break;
+      case 'heal':
+        player.hp = Math.min(player.maxHp, player.hp + 40);
+        break;
     }
   }
 

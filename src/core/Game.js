@@ -10,6 +10,7 @@ import { WeaponSystem }     from '../systems/WeaponSystem.js';
 import { CollisionSystem }  from '../systems/CollisionSystem.js';
 import { DamageNumbers }    from '../systems/DamageNumbers.js';
 import { UpgradeSystem }    from '../systems/UpgradeSystem.js';
+import { PassiveSystem }    from '../systems/PassiveSystem.js';
 
 const { WIDTH: GW, HEIGHT: GH } = GameConfig;
 
@@ -50,6 +51,7 @@ export class Game {
     this.xpGems      = [];
     this.spawner     = new Spawner();
     this.weapons     = new WeaponSystem();
+    this.passives    = new PassiveSystem();
     this.dmgNums     = new DamageNumbers();
     this.upgrades    = new UpgradeSystem();
 
@@ -137,7 +139,7 @@ export class Game {
   _pickUpgrade(index) {
     const choice = this._levelUpChoices[index];
     if (!choice) return;
-    this.upgrades.apply(choice, this.player, this.weapons);
+    this.upgrades.apply(choice, this.player, this.weapons, this.passives);
     this._hoverCard = -1;
 
     if (this._pendingLevelUps > 0) {
@@ -149,7 +151,7 @@ export class Game {
 
   _openLevelUpMenu() {
     this._pendingLevelUps   -= 1;
-    this._levelUpChoices     = this.upgrades.pickThree(this.weapons);
+    this._levelUpChoices     = this.upgrades.pickThree(this.weapons, this.passives);
     this._cardRects          = [];
     this.state               = 'levelup';
   }
@@ -242,7 +244,8 @@ export class Game {
 
     ctx.restore(); // end shake before drawing UI
 
-    this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills, this.weapons.getHUDInfo());
+    this.ui.drawHUD(ctx, this.player, this.elapsed, this.fps, this.kills,
+      this.weapons.getHUDInfo(), this.passives.getHUDInfo());
 
     if (this.state === 'levelup') {
       // drawLevelUp returns card rects for click/hover hit-testing

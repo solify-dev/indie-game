@@ -11,7 +11,7 @@ export class UISystem {
   }
 
   // ── In-game HUD ─────────────────────────────────────────────────────────────
-  drawHUD(ctx, player, elapsed, fps, kills, weaponHUD = []) {
+  drawHUD(ctx, player, elapsed, fps, kills, weaponHUD = [], passiveHUD = []) {
     const PAD = 30;
 
     // Title watermark
@@ -81,43 +81,68 @@ export class UISystem {
     );
     ctx.restore();
 
-    // Weapon inventory panel (top-left, below timer area)
-    if (weaponHUD.length > 0) {
-      const wx = PAD;
-      const wy = PAD + 80;
+    // Combined weapon + passive inventory panel (top-left, below timer area)
+    const allItems = [
+      ...weaponHUD.map(w => ({ ...w, _section: 'weapon' })),
+      ...passiveHUD.map(p => ({ ...p, _section: 'passive' })),
+    ];
+    if (allItems.length > 0) {
+      const wx   = PAD;
+      const wy   = PAD + 80;
       const itemH = 44, itemW = 260;
+      const hasBoth = weaponHUD.length > 0 && passiveHUD.length > 0;
+      const separatorH = hasBoth ? 16 : 0;
+      const panelH = allItems.length * itemH + separatorH + 16;
 
       ctx.save();
-      // Panel background
-      const panelH = weaponHUD.length * itemH + 16;
       this._roundRect(ctx, wx - 8, wy - 8, itemW + 16, panelH, 8);
-      ctx.fillStyle = 'rgba(5,10,25,0.72)';
+      ctx.fillStyle   = 'rgba(5,10,25,0.72)';
       ctx.strokeStyle = 'rgba(60,100,180,0.45)';
-      ctx.lineWidth = 1;
+      ctx.lineWidth   = 1;
       ctx.fill(); ctx.stroke();
 
-      for (let i = 0; i < weaponHUD.length; i++) {
-        const w   = weaponHUD[i];
-        const row = wy + i * itemH;
+      let rowY = wy;
+      let inPassiveSection = false;
+
+      for (let i = 0; i < allItems.length; i++) {
+        const item = allItems[i];
+
+        // Section divider between weapons and passives
+        if (hasBoth && item._section === 'passive' && !inPassiveSection) {
+          inPassiveSection = true;
+          ctx.strokeStyle = 'rgba(80,160,80,0.35)';
+          ctx.lineWidth   = 1;
+          ctx.beginPath();
+          ctx.moveTo(wx, rowY + 4); ctx.lineTo(wx + itemW, rowY + 4);
+          ctx.stroke();
+          ctx.font = '15px monospace'; ctx.fillStyle = 'rgba(120,200,120,0.55)';
+          ctx.textAlign = 'left';
+          ctx.fillText('PASSIVES', wx, rowY + 14);
+          rowY += separatorH;
+        }
+
+        const pipColour  = item._section === 'weapon' ? '#44aaff' : '#44cc88';
+        const nameColour = item._section === 'weapon' ? '#aac8ff' : '#aaffcc';
 
         // Icon
         ctx.font = '26px serif'; ctx.textAlign = 'left';
-        ctx.fillText(w.icon, wx, row + 28);
+        ctx.fillText(item.icon, wx, rowY + 28);
 
         // Name
         ctx.font = 'bold 20px monospace';
-        ctx.fillStyle = '#aac8ff';
-        ctx.fillText(w.name, wx + 34, row + 20);
+        ctx.fillStyle = nameColour;
+        ctx.fillText(item.name, wx + 34, rowY + 20);
 
         // Level pips
-        const maxPips = w.maxLevel;
         const pipW = 14, pipGap = 4;
-        for (let p = 0; p < maxPips; p++) {
-          ctx.fillStyle = p < w.level ? '#44aaff' : '#182840';
+        for (let p = 0; p < item.maxLevel; p++) {
+          ctx.fillStyle   = p < item.level ? pipColour : '#182840';
           ctx.strokeStyle = '#2a4a66'; ctx.lineWidth = 1;
-          ctx.fillRect(wx + 34 + p * (pipW + pipGap), row + 26, pipW, 6);
-          ctx.strokeRect(wx + 34 + p * (pipW + pipGap), row + 26, pipW, 6);
+          ctx.fillRect(wx + 34 + p * (pipW + pipGap), rowY + 26, pipW, 6);
+          ctx.strokeRect(wx + 34 + p * (pipW + pipGap), rowY + 26, pipW, 6);
         }
+
+        rowY += itemH;
       }
       ctx.restore();
     }
@@ -177,11 +202,18 @@ export class UISystem {
     const r = 16;
 
     // Accent colour per card type
-    const accent = choice.type === 'new_weapon'
-      ? { border: '#ffaa33', glow: 'rgba(255,160,40,0.5)',  bg: hovered ? '#251a0a' : '#18100a', name: hovered ? '#ffcc77' : '#ffdda0' }
+    const accent =
+      choice.type === 'new_weapon'
+        ? { border: '#ffaa33', glow: 'rgba(255,160,40,0.5)',   bg: hovered ? '#251a0a' : '#18100a', name: hovered ? '#ffcc77' : '#ffdda0' }
       : choice.type === 'weapon_upgrade'
-      ? { border: '#bb44ff', glow: 'rgba(160,60,255,0.45)', bg: hovered ? '#1a0f28' : '#110a1e', name: hovered ? '#cc88ff' : '#ddb0ff' }
-      : { border: '#4488ff', glow: 'rgba(80,160,255,0.5)',  bg: hovered ? '#1a2540' : '#0f172a', name: hovered ? '#88ccff' : '#cce0ff' };
+        ? { border: '#bb44ff', glow: 'rgba(160,60,255,0.45)',  bg: hovered ? '#1a0f28' : '#110a1e', name: hovered ? '#cc88ff' : '#ddb0ff' }
+      : choice.type === 'new_passive'
+        ? { border: '#33dd88', glow: 'rgba(40,210,120,0.45)',  bg: hovered ? '#0a1f14' : '#071410', name: hovered ? '#66ffbb' : '#aaffcc' }
+      : choice.type === 'passive_upgrade'
+        ? { border: '#22bbaa', glow: 'rgba(30,180,160,0.45)',  bg: hovered ? '#091a18' : '#061210', name: hovered ? '#55ddcc' : '#99eedd' }
+      : choice.type === 'heal'
+        ? { border: '#ff5566', glow: 'rgba(255,60,80,0.45)',   bg: hovered ? '#200a0c' : '#160608', name: hovered ? '#ff8899' : '#ffbbcc' }
+      :   { border: '#4488ff', glow: 'rgba(80,160,255,0.5)',   bg: hovered ? '#1a2540' : '#0f172a', name: hovered ? '#88ccff' : '#cce0ff' };
 
     // Card background
     ctx.save();
@@ -206,13 +238,24 @@ export class UISystem {
 
     // Type badge strip at card top
     ctx.save();
-    ctx.fillStyle = hovered ? accent.border : (choice.type === 'new_weapon' ? '#aa6600' : choice.type === 'weapon_upgrade' ? '#661199' : '#1a3a6a');
+    const badgeBg = hovered ? accent.border
+      : choice.type === 'new_weapon'      ? '#aa6600'
+      : choice.type === 'weapon_upgrade'  ? '#661199'
+      : choice.type === 'new_passive'     ? '#1a6644'
+      : choice.type === 'passive_upgrade' ? '#0f4a44'
+      : choice.type === 'heal'            ? '#771122'
+      : '#1a3a6a';
+    ctx.fillStyle = badgeBg;
     ctx.fillRect(x + 1, y + 1, CARD_W - 2, 32);
     ctx.font = 'bold 18px monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.textAlign = 'center';
     ctx.fillText(
-      choice.type === 'new_weapon' ? 'NEW WEAPON' : choice.type === 'weapon_upgrade' ? 'WEAPON UPGRADE' : 'STAT UPGRADE',
+      choice.type === 'new_weapon'      ? 'NEW WEAPON'      :
+      choice.type === 'weapon_upgrade'  ? 'WEAPON UPGRADE'  :
+      choice.type === 'new_passive'     ? 'NEW PASSIVE'     :
+      choice.type === 'passive_upgrade' ? 'PASSIVE UPGRADE' :
+      choice.type === 'heal'            ? 'RESTORE'         : 'UPGRADE',
       cx, y + 22,
     );
     ctx.restore();

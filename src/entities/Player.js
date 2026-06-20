@@ -16,11 +16,12 @@ export class Player extends Entity {
     this.xp       = 0;
     this.xpToNext = CFG.xpToNextBase;
 
-    // Stat multipliers — modified by upgrades
+    // Stat multipliers — modified by passives/upgrades
     this.weaponDamageMulti    = 1.0;
     this.weaponFireRateMulti  = 1.0;  // >1 fires faster
     this.projectileSpeedMulti = 1.0;
     this.magnetRadius         = GameConfig.gems.magnetRadius;
+    this.luckMulti            = 1.0;  // used by Clover Coin; future chest/drop logic
 
     this.facing     = 1;
     this._iTimer    = 0;
