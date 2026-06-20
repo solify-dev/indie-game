@@ -1,4 +1,4 @@
-import { Projectile }  from '../entities/Projectile.js';
+import { Projectile } from '../entities/Projectile.js';
 import { GameConfig }  from '../config/GameConfig.js';
 import { normalise }   from '../core/MathUtils.js';
 
@@ -16,17 +16,20 @@ export class WeaponSystem {
     }
 
     const nearest = this._findNearest(player, enemies);
-    if (!nearest) return; // no enemies yet — wait silently
+    if (!nearest) return; // no enemies yet — wait
 
-    const dx  = nearest.x - player.x;
-    const dy  = nearest.y - player.y;
-    const dir = normalise(dx, dy);
+    const dir = normalise(nearest.x - player.x, nearest.y - player.y);
 
-    projectiles.push(new Projectile(player.x, player.y, dir.x, dir.y));
-    this._cooldown = CFG.fireRate;
+    // Read stat multipliers from the player so upgrades take effect immediately
+    const damage = Math.round(CFG.projectileDamage * player.weaponDamageMulti);
+    const speed  = CFG.projectileSpeed * player.projectileSpeedMulti;
+
+    projectiles.push(new Projectile(player.x, player.y, dir.x, dir.y, damage, speed));
+
+    // Higher fireRateMulti = shorter cooldown = faster shots
+    this._cooldown = CFG.fireRate / player.weaponFireRateMulti;
   }
 
-  // Returns the closest active enemy, or null.
   _findNearest(player, enemies) {
     let nearest  = null;
     let bestDist = Infinity;
@@ -34,7 +37,7 @@ export class WeaponSystem {
       if (!e.active) continue;
       const dx = e.x - player.x;
       const dy = e.y - player.y;
-      const d  = dx * dx + dy * dy; // squared — fine for comparison
+      const d  = dx * dx + dy * dy;
       if (d < bestDist) { bestDist = d; nearest = e; }
     }
     return nearest;

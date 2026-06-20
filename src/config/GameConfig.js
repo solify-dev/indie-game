@@ -6,16 +6,16 @@ export const GameConfig = {
   // ── Canvas ────────────────────────────────────────────────────────────────
   WIDTH:       1920,
   HEIGHT:      1080,
-  SPRITE_SIZE: 182,   // source size of all character/enemy sprites (px)
+  SPRITE_SIZE: 182,
 
   // ── Player ────────────────────────────────────────────────────────────────
   player: {
-    speed:           220,  // world px / second
+    speed:           220,
     hp:              100,
-    collisionRadius: 22,   // smaller than sprite so the game feels fair
-    iframes:         0.7,  // invincibility seconds after being hit
-    xpToNextBase:    100,  // XP needed for level 2
-    xpScaling:       1.15, // multiplier applied to xpToNext each level-up
+    collisionRadius: 22,
+    iframes:         0.7,   // invincibility seconds after a hit
+    xpToNextBase:    100,   // XP required to reach level 2
+    xpScaling:       1.15,  // xpToNext multiplier per level
   },
 
   // ── Enemies ───────────────────────────────────────────────────────────────
@@ -25,36 +25,47 @@ export const GameConfig = {
       hp:              40,
       collisionRadius: 26,
       contactDamage:   8,
-      xpValue:         2,
+      xpValue:         5,   // drops a green gem
     },
     bat: {
       speed:           155,
       hp:              18,
       collisionRadius: 18,
       contactDamage:   12,
-      xpValue:         1,
+      xpValue:         1,   // drops a blue gem
     },
   },
 
-  // ── Weapon (starter orb shooter) ─────────────────────────────────────────
+  // ── Weapon (starter auto-shooter) ────────────────────────────────────────
   weapon: {
-    fireRate:           0.6,   // seconds between shots
-    projectileSpeed:    620,   // world px / second
+    fireRate:           0.6,
+    projectileSpeed:    620,
     projectileDamage:   12,
-    projectileRadius:   10,    // collision radius
-    projectileLifetime: 1.8,   // seconds before auto-removal
-    knockbackForce:     420,   // px / second impulse applied to hit enemy
+    projectileRadius:   10,
+    projectileLifetime: 1.8,
+    knockbackForce:     420,
+  },
+
+  // ── XP Gems ───────────────────────────────────────────────────────────────
+  gems: {
+    // Gem types by XP value tier
+    types: {
+      blue:  { value: 1,  size: 32, primary: '#44aaff', secondary: '#0055cc' },
+      green: { value: 5,  size: 40, primary: '#44ff88', secondary: '#009944' },
+      red:   { value: 10, size: 48, primary: '#ff5544', secondary: '#aa1100' },
+    },
+    magnetRadius:  90,   // px — gems inside this radius get pulled toward player
+    magnetSpeed:   380,  // px / second when magnetised
+    bobSpeed:      2.2,  // radians / second for hover animation
+    collectRadius: 16,   // px overlap with player that triggers collection
   },
 
   // ── Spawner ───────────────────────────────────────────────────────────────
   spawner: {
-    margin:   160,  // px outside the visible area where enemies spawn
-    baseRate: 0.8,  // enemies per second at t=0
-    maxRate:  6,    // cap
-    rampTime: 30,   // seconds to reach max rate
-
-    // [minElapsedSeconds, { type: weight, … }]
-    // First matching row (from bottom) wins.
+    margin:   160,
+    baseRate: 0.8,
+    maxRate:  6,
+    rampTime: 30,
     schedule: [
       [  0, { slime: 1,    bat: 0    }],
       [ 30, { slime: 0.75, bat: 0.25 }],
@@ -63,32 +74,24 @@ export const GameConfig = {
     ],
   },
 
-  // ── XP Gems ───────────────────────────────────────────────────────────────
-  gems: {
-    magnetRadius: 90,   // px from player that pulls gems in
-    magnetSpeed:  380,  // px / second when magnetised
-    bobSpeed:     2.2,  // radians / second for hover animation
-    collectRadius: 16,  // px overlap that counts as "collected"
-  },
-
   // ── Damage Numbers ────────────────────────────────────────────────────────
   damageNumbers: {
-    lifetime:   0.85,  // seconds
-    riseSpeed:  80,    // world px / second upward
-    drift:      40,    // max horizontal drift px
-    fontSize:   26,
+    lifetime:  0.85,
+    riseSpeed: 80,
+    drift:     40,
+    fontSize:  26,
   },
 
   // ── Renderer ──────────────────────────────────────────────────────────────
   renderer: {
-    background:  '#0d0d1a',
-    gridSize:    120,   // world px per grid cell
-    gridColour:  'rgba(255,255,255,0.045)',
+    background: '#0d0d1a',
+    gridSize:   120,
+    gridColour: 'rgba(255,255,255,0.045)',
   },
 
   // ── Screen shake ─────────────────────────────────────────────────────────
   shake: {
-    onHit:  7,     // magnitude added when player is hit
-    decay:  0.88,  // multiplied each frame (exponential decay)
+    onHit: 7,
+    decay: 0.88,
   },
 };

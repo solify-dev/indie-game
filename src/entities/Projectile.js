@@ -1,21 +1,22 @@
-import { Entity }      from '../core/Entity.js';
-import { GameConfig }  from '../config/GameConfig.js';
+import { Entity }     from '../core/Entity.js';
+import { GameConfig } from '../config/GameConfig.js';
 
 const CFG = GameConfig.weapon;
 
 export class Projectile extends Entity {
-  constructor(x, y, dirX, dirY) {
+  // damage and speed can be overridden by WeaponSystem when applying upgrades
+  constructor(x, y, dirX, dirY,
+              damage = CFG.projectileDamage,
+              speed  = CFG.projectileSpeed) {
     super(x, y);
-    // Store direction unit vector — also used to calculate knockback direction on hit
-    this.dirX   = dirX;
+    this.dirX   = dirX; // unit vector — kept for knockback direction on hit
     this.dirY   = dirY;
-    this.vx     = dirX * CFG.projectileSpeed;
-    this.vy     = dirY * CFG.projectileSpeed;
+    this.vx     = dirX * speed;
+    this.vy     = dirY * speed;
     this.radius = CFG.projectileRadius;
-    this.damage = CFG.projectileDamage;
+    this.damage = damage;
     this.knockbackForce = CFG.knockbackForce;
-
-    this._age = 0;
+    this._age   = 0;
   }
 
   update(dt) {
@@ -24,7 +25,6 @@ export class Projectile extends Entity {
     if (this._age >= CFG.projectileLifetime) this.active = false;
   }
 
-  // Deactivate if the projectile has scrolled off the visible area.
   cullIfOffScreen(camX, camY, gameW, gameH) {
     const MARGIN = 80;
     const sx = this.x - camX;
@@ -39,7 +39,6 @@ export class Projectile extends Entity {
     const { x: sx, y: sy } = camera.toScreen(this.x, this.y);
     const r = CFG.projectileRadius;
 
-    // Glowing orb: outer halo + bright core
     const grd = ctx.createRadialGradient(sx, sy, 1, sx, sy, r * 2.2);
     grd.addColorStop(0,   'rgba(255,230,80,1)');
     grd.addColorStop(0.4, 'rgba(255,140,20,0.8)');
